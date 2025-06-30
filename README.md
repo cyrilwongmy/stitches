@@ -2,6 +2,8 @@
 
 This repository contains the Needle library homeworks together from [the dlsys course](https://dlsyscourse.org/), a deep learning library designed for educational purposes. This repository is intended to help learners debug and finish the homework assignments in an easy way.
 
+Jupyter notebook is only for reference. If you want to run the code, please use the test suite in command line or vscode debugger.
+
 ## Homeworks
 
 Each homework without a solution is put into a separate branch and can be accessed by checking out the corresponding branch. The branches are named as follows:
@@ -49,12 +51,6 @@ This branch focuses on implementing the core components of the Needle deep learn
    
    # Test the simple ML application
    python3 -m pytest tests/test_simple_ml.py
-   ```
-
-3. **Work with the notebook:**
-   ```bash
-   # Open the homework notebook
-   jupyter notebook hw_notebook/hw1.ipynb
    ```
 
 ### Dataset
