@@ -1,0 +1,14 @@
+# Core dependencies for the Needle deep learning library
+numpy
+
+# Testing and grading dependencies
+pytest
+numdifftools
+
+# Jupyter notebook support
+jupyter
+notebook
+ipykernel
+
+# Mugrade for automated grading (from dlsys course)
+# git+https://github.com/dlsys10714/mugrade.git
