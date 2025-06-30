@@ -380,17 +380,9 @@ def compute_gradient_of_variables(output_tensor, out_grad):
     reverse_topo_order = list(reversed(find_topo_sort([output_tensor])))
 
     ### BEGIN YOUR SOLUTION
-    for node in reverse_topo_order:
-        node.grad = sum_node_list(node_to_output_grads_list[node])
-
-        if len(node.inputs) > 0:
-            gradient = node.op.gradient_as_tuple(node.grad, node)
-
-            for i, input_node in enumerate(node.inputs):
-                if input_node not in node_to_output_grads_list:
-                    node_to_output_grads_list[input_node] = []
-                node_to_output_grads_list[input_node].append(gradient[i])
+    raise NotImplementedError()
     ### END YOUR SOLUTION
+
 
 def find_topo_sort(node_list: List[Value]) -> List[Value]:
     """Given a list of nodes, return a topological sort list of nodes ending in them.
@@ -401,21 +393,14 @@ def find_topo_sort(node_list: List[Value]) -> List[Value]:
     sort.
     """
     ### BEGIN YOUR SOLUTION
-    visited = set()
-    topo_order = []
-    topo_sort_dfs(node_list[0], visited, topo_order)
-    return topo_order
+    raise NotImplementedError()
     ### END YOUR SOLUTION
 
 
 def topo_sort_dfs(node, visited, topo_order):
     """Post-order DFS"""
     ### BEGIN YOUR SOLUTION
-    visited.add(node)
-    for sub_node in node.inputs:
-        if sub_node not in visited:
-            topo_sort_dfs(sub_node, visited, topo_order)
-    topo_order.append(node)
+    raise NotImplementedError()
     ### END YOUR SOLUTION
 
 
@@ -429,5 +414,4 @@ def sum_node_list(node_list):
     from operator import add
     from functools import reduce
 
-    ans = reduce(add, node_list)
-    return ans
+    return reduce(add, node_list)
