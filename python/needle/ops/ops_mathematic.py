@@ -16,7 +16,9 @@ import numpy as array_api
 
 class EWiseAdd(TensorOp):
     def compute(self, a: NDArray, b: NDArray):
-        return a + b
+        if a.shape != b.shape:
+            raise ValueError(f"EWiseAdd: a.shape = {a.shape}, b.shape = {b.shape}")
+        return array_api.add(a, b)
 
     def gradient(self, out_grad: Tensor, node: Tensor):
         return out_grad, out_grad
@@ -31,7 +33,7 @@ class AddScalar(TensorOp):
         self.scalar = scalar
 
     def compute(self, a: NDArray):
-        return a + self.scalar
+        return array_api.add(a, self.scalar)
 
     def gradient(self, out_grad: Tensor, node: Tensor):
         return out_grad
@@ -43,6 +45,8 @@ def add_scalar(a, scalar):
 
 class EWiseMul(TensorOp):
     def compute(self, a: NDArray, b: NDArray):
+        if a.shape != b.shape:
+            raise ValueError(f"EWiseMul: a.shape = {a.shape}, b.shape = {b.shape}")
         return a * b
 
     def gradient(self, out_grad: Tensor, node: Tensor):
@@ -62,7 +66,7 @@ class MulScalar(TensorOp):
         return a * self.scalar
 
     def gradient(self, out_grad: Tensor, node: Tensor):
-        return (out_grad * self.scalar,)
+        return out_grad * self.scalar,
 
 
 def mul_scalar(a, scalar):
@@ -74,6 +78,7 @@ class EWisePow(TensorOp):
 
     def compute(self, a: NDArray, b: NDArray) -> NDArray:
         ### BEGIN YOUR SOLUTION
+        assert a.shape == b.shape, f"EWisePow: a.shape = {a.shape}, b.shape = {b.shape}"
         return array_api.power(a, b)
         ### END YOUR SOLUTION
         
@@ -98,20 +103,13 @@ class PowerScalar(TensorOp):
 
     def compute(self, a: NDArray) -> NDArray:
         ### BEGIN YOUR SOLUTION
-        print(f"PowerScalar.compute called with a={a}, scalar={self.scalar}")
-        return array_api.power(a, self.scalar)
+        return array_api.power(a, self.scalar, dtype=a.dtype)
         ### END YOUR SOLUTION
 
     def gradient(self, out_grad, node):
         ### BEGIN YOUR SOLUTION
         # adjoint = (y / v_i+1)' * d'(v_i+1 / v_i)' = out_grad * (v_i+1 / v_i)'
-        scalar_tensor = Tensor(array_api.array([self.scalar]))
-
-        # recomputation
-        # return scalar_tensor * out_grad * array_api.power(node.inputs[0].realize_cached_data(), self.scalar - 1)
-
-        # reuse the compute result of power to reduce redundant computation
-        return scalar_tensor * out_grad * array_api.divide(node.cached_data, node.inputs[0].cached_data)
+        return out_grad * self.scalar * power_scalar(node.inputs[0], self.scalar - 1)
         ### END YOUR SOLUTION
 
 
@@ -124,13 +122,14 @@ class EWiseDiv(TensorOp):
 
     def compute(self, a, b):
         ### BEGIN YOUR SOLUTION
+        assert a.shape == b.shape, f"EWiseDiv: a.shape = {a.shape}, b.shape = {b.shape}"
         return array_api.true_divide(a, b)
         ### END YOUR SOLUTION
 
     def gradient(self, out_grad, node):
         lhs, rhs = node.inputs
         ### BEGIN YOUR SOLUTION
-        return out_grad * array_api.true_divide(1, rhs.cached_data), out_grad * array_api.true_divide(-lhs.cached_data, array_api.power(rhs.cached_data, 2))
+        return out_grad / rhs, -lhs * (out_grad / rhs ** 2)
         ### END YOUR SOLUTION
 
 
@@ -149,7 +148,10 @@ class DivScalar(TensorOp):
 
     def gradient(self, out_grad, node):
         ### BEGIN YOUR SOLUTION
-        return out_grad * Tensor(array_api.array([1 / self.scalar]))
+        ans = out_grad / self.scalar
+        if ans.dtype != "float32":
+            raise ValueError(f"DivScalar: ans.dtype = {ans.dtype}")
+        return ans
         ### END YOUR SOLUTION
 
 
@@ -171,7 +173,10 @@ class Transpose(TensorOp):
 
     def gradient(self, out_grad, node):
         ### BEGIN YOUR SOLUTION
-        return transpose(out_grad, self.axes)
+        ans = transpose(out_grad, self.axes)
+        if ans.dtype != "float32":
+            raise ValueError(f"Transpose: ans.dtype = {ans.dtype}")
+        return ans
         ### END YOUR SOLUTION
 
 
@@ -190,7 +195,10 @@ class Reshape(TensorOp):
 
     def gradient(self, out_grad, node):
         ### BEGIN YOUR SOLUTION
-        return reshape(out_grad, node.inputs[0].realize_cached_data().shape)
+        ans = reshape(out_grad, node.inputs[0].realize_cached_data().shape)
+        if ans.dtype != "float32":
+            raise ValueError(f"Reshape: ans.dtype = {ans.dtype}")
+        return ans
         ### END YOUR SOLUTION
 
 
@@ -210,11 +218,24 @@ class BroadcastTo(TensorOp):
     def gradient(self, out_grad, node):
         ### BEGIN YOUR SOLUTION
         a_shape = node.inputs[0].realize_cached_data().shape
-        out_grad_removed = summation(out_grad, axes=tuple(range(len(out_grad.shape) - len(a_shape))))
-        for i, dim in enumerate(a_shape):
-            if dim == 1:
-                out_grad_removed = summation(out_grad_removed, axes=(i,))
-        return reshape(out_grad_removed, a_shape)
+        # check the replicated axes
+
+        # (1, 1) -> (1, 5) case
+        if len(out_grad.shape) == len(a_shape):
+            out_grad_removed = out_grad
+            for i, dim in enumerate(a_shape):
+                if dim == 1 and out_grad.shape[i] != 1:
+                    out_grad_removed = summation(out_grad, axes=(i,))
+        else:
+            # (1, ) -> (1, 1) -> (1, 5) case
+            out_grad_removed = summation(out_grad, axes=tuple(range(len(out_grad.shape) - len(a_shape))))
+            for i, dim in enumerate(a_shape):
+                if dim == 1:
+                    out_grad_removed = summation(out_grad_removed, axes=(i,))
+        ans = reshape(out_grad_removed, a_shape)
+        if ans.dtype != "float32":
+            raise ValueError(f"BroadcastTo: ans.dtype = {ans.dtype}")
+        return ans
         ### END YOUR SOLUTION
 
 
@@ -234,7 +255,7 @@ class Summation(TensorOp):
     def gradient(self, out_grad, node):
         ### BEGIN YOUR SOLUTION
         if self.axes is None:
-            return Tensor(array_api.ones_like(node.inputs[0].cached_data)) * out_grad
+            return out_grad.broadcast_to(node.inputs[0].shape)
         else:
             # reshape the out_grad to the same shape as the input
             shape_gy = list(node.inputs[0].realize_cached_data().shape)
@@ -266,12 +287,18 @@ class MatMul(TensorOp):
     """
     def gradient(self, out_grad, node):
         a, b = node.inputs
-        adjoint1 = out_grad @ transpose(b)
-        adjoint2 = transpose(a) @ out_grad
+        adjoint1 = matmul(out_grad, transpose(b))
+        adjoint2 = matmul(transpose(a), out_grad)
         # If the input tensors are not 2D, we need to sum over the extra dimensions
         # This is necessary to ensure the gradients have the correct shape
-        adjoint1 = summation(adjoint1, axes=tuple(range(len(adjoint1.shape) - len(a.shape))))
-        adjoint2 = summation(adjoint2, axes=tuple(range(len(adjoint2.shape) - len(b.shape))))
+        if len(adjoint1.shape) > len(a.shape):
+            adjoint1 = summation(adjoint1, axes=tuple(range(len(adjoint1.shape) - len(a.shape))))
+        if len(adjoint2.shape) > len(b.shape):
+            adjoint2 = summation(adjoint2, axes=tuple(range(len(adjoint2.shape) - len(b.shape))))
+        if adjoint1.dtype != "float32":
+            raise ValueError(f"MatMul: adjoint1.dtype = {adjoint1.dtype}")
+        if adjoint2.dtype != "float32":
+            raise ValueError(f"MatMul: adjoint2.dtype = {adjoint2.dtype}")
         return adjoint1, adjoint2
 
 def matmul(a, b):
@@ -302,7 +329,10 @@ class Log(TensorOp):
 
     def gradient(self, out_grad, node):
         ### BEGIN YOUR SOLUTION
-        return out_grad * array_api.true_divide(1, node.inputs[0].cached_data)
+        ans = out_grad / node.inputs[0]
+        if ans.dtype != "float32":
+            raise ValueError(f"Log: ans.dtype = {ans.dtype}")
+        return ans
         ### END YOUR SOLUTION
 
 
@@ -318,7 +348,10 @@ class Exp(TensorOp):
 
     def gradient(self, out_grad, node):
         ### BEGIN YOUR SOLUTION
-        return out_grad * array_api.exp(node.inputs[0].cached_data)
+        ans = out_grad * exp(node.inputs[0])
+        if ans.dtype != "float32":
+            raise ValueError(f"Exp: ans.dtype = {ans.dtype}")
+        return ans
         ### END YOUR SOLUTION
 
 
@@ -334,7 +367,10 @@ class ReLU(TensorOp):
 
     def gradient(self, out_grad, node):
         ### BEGIN YOUR SOLUTION
-        return out_grad * array_api.where(node.inputs[0].realize_cached_data() > 0, 1, 0)
+        ans = out_grad * Tensor(node.cached_data > 0, dtype="float32", device=node.device, requires_grad=False)
+        if ans.dtype != "float32":
+            raise ValueError(f"ReLU: ans.dtype = {ans.dtype}")
+        return ans
         ### END YOUR SOLUTION
 
 

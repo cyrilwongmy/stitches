@@ -1,6 +1,7 @@
 import sys
 
 sys.path.append("./python")
+sys.path.append("./apps")
 import needle as ndl
 import numpy as np
 
