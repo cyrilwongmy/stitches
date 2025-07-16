@@ -83,6 +83,17 @@
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
       "python": "${command:python.interpreterPath}",
-    }
+    },
+    {
+      "name": "hw2-mlp",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": ["--capture", "no", "-k", "test_mlp_train_mnist_1", "tests/test_nn_and_optim.py"],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "python": "${command:python.interpreterPath}",
+    },
+
   ]
 }

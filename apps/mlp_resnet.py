@@ -13,7 +13,20 @@ np.random.seed(0)
 
 def ResidualBlock(dim, hidden_dim, norm=nn.BatchNorm1d, drop_prob=0.1):
     ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
+    # x -> linear -> norm -> relu -> dropout -> linear -> + -> relu
+    return nn.Sequential(
+        nn.Residual(
+            nn.Sequential(
+                nn.Linear(dim, hidden_dim),
+                norm(hidden_dim),
+                nn.ReLU(),
+                nn.Dropout(drop_prob),
+                nn.Linear(hidden_dim, dim),
+                norm(dim),
+            )
+        ),
+        nn.ReLU(),
+    )
     ### END YOUR SOLUTION
 
 
@@ -26,14 +39,43 @@ def MLPResNet(
     drop_prob=0.1,
 ):
     ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
+    return nn.Sequential(
+        nn.Linear(dim, hidden_dim),
+        nn.ReLU(),
+        *[ResidualBlock(hidden_dim, hidden_dim // 2, norm, drop_prob) for _ in range(num_blocks)],
+        nn.Linear(hidden_dim, num_classes),
+    )
     ### END YOUR SOLUTION
 
 
 def epoch(dataloader, model, opt=None):
     np.random.seed(4)
     ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
+    # execute one epoch of training or evaluation over the entire dataset
+
+    loss_func = nn.SoftmaxLoss()
+
+    if opt is not None:
+        model.train()
+    else:
+        model.eval()
+
+    total_loss = 0.0
+    total_error = 0.0
+    for x, y_true in dataloader:
+        if opt is not None:
+            opt.reset_grad()
+
+        y_pred = model(x)
+        loss = loss_func(y_pred, y_true)
+        total_loss += loss.numpy() * x.shape[0]
+        total_error += np.sum(np.argmax(y_pred.numpy(), axis=1) != y_true.numpy())
+
+        if opt is not None:
+            loss.backward()
+            opt.step()
+
+    return total_error / len(dataloader.dataset), total_loss / len(dataloader.dataset)
     ### END YOUR SOLUTION
 
 
@@ -48,7 +90,27 @@ def train_mnist(
 ):
     np.random.seed(4)
     ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
+    train_dataset = ndl.data.MNISTDataset(
+        os.path.join(data_dir, "train-images-idx3-ubyte.gz"),
+        os.path.join(data_dir, "train-labels-idx1-ubyte.gz"),
+        transforms=[],
+    )
+    train_loader = ndl.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    test_dataset = ndl.data.MNISTDataset(
+        os.path.join(data_dir, "t10k-images-idx3-ubyte.gz"),
+        os.path.join(data_dir, "t10k-labels-idx1-ubyte.gz"),
+        transforms=[],
+    )
+    test_loader = ndl.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+
+    model = MLPResNet(28*28, hidden_dim, 3, 10, nn.BatchNorm1d, 0.1)
+    opt = optimizer(model.parameters(), lr=lr, weight_decay=weight_decay)
+
+    for i in range(epochs):
+        train_error, train_loss = epoch(train_loader, model, opt)
+        test_error, test_loss = epoch(test_loader, model, None)
+    
+    return train_error, train_loss, test_error, test_loss
     ### END YOUR SOLUTION
 
 

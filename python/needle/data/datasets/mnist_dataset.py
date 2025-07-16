@@ -38,7 +38,7 @@ class MNISTDataset(Dataset):
         """
         ### BEGIN YOUR SOLUTION
         # apply transforms
-        x = self.apply_transforms(self.X[index].reshape(28, 28, 1))
+        x = self.apply_transforms(self.X[index].reshape(28, 28, -1))
         return x.reshape(-1, 28*28), self.y[index]
         ### END YOUR SOLUTION
 
