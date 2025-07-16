@@ -23,6 +23,13 @@ class Dataset:
         raise NotImplementedError
     
     def apply_transforms(self, x):
+        """
+        Apply the transforms to the image.
+        Args:
+            x: H x W x C NDArray of an image
+        Returns:
+            H x W x C NDArray of the transformed image
+        """
         if self.transforms is not None:
             # apply the transforms
             for tform in self.transforms:
